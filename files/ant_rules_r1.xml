@@ -3,7 +3,7 @@
 
     <!--
         This rules file is meant to be imported by the custom Ant task:
-            com.android.ant.SetupTask
+            com.android.ant.AndroidInitTask
 
         The following properties are put in place by the importing task:
             android.jar, android.aidl, aapt, aidl, and dx
@@ -86,7 +86,7 @@
     <condition property="verbosity" value="verbose" else="quiet">
         <istrue value="${verbose}" />
     </condition>
-    <!-- This is needed to switch verbosity of zipalign. Depends exclusively on 'verbose'
+    <!-- This is needed to switch verbosity of zipalign and aapt. Depends exclusively on 'verbose'
          -->
     <condition property="v.option" value="-v" else="">
         <istrue value="${verbose}" />
@@ -118,7 +118,8 @@
        <element name="external-libs" optional="yes" />
        <element name="extra-parameters" optional="yes" />
        <sequential>
-         <echo>Converting compiled files and external libraries into ${intermediate.dex.file}...</echo>
+         <echo>Converting compiled files and external libraries into ${intermediate.dex.file}...
+         </echo>
          <apply executable="${dx}" failonerror="true" parallel="true">
              <arg value="--dex" />
              <arg value="--output=${intermediate.dex.file}" />
@@ -133,7 +134,7 @@
 
     <!-- This is macro that enable passing variable list of external jar files to ApkBuilder
          Example of use:
-         <package-helper sign.package="true" debug.mode="true">
+         <package-helper>
              <extra-jars>
                 <jarfolder path="my_jars" />
                 <jarfile path="foo/bar.jar" />
@@ -142,18 +143,15 @@
          </package-helper> -->
     <macrodef name="package-helper">
         <attribute name="sign.package" />
-        <attribute name="debug.mode" />
         <element name="extra-jars" optional="yes" />
         <sequential>
             <apkbuilder
                     outfolder="${out.absolute.dir}"
                     basename="${ant.project.name}"
                     signed="@{sign.package}"
-                    debug="@{debug.mode}"
                     verbose="${verbose}">
                 <file path="${intermediate.dex.file}" />
                 <sourcefolder path="${source.absolute.dir}" />
-                <sourcefolder refid="android.libraries.src" />
                 <nativefolder path="${native.libs.absolute.dir}" />
                 <jarfolder path="${external.libs.absolute.dir}" />
                 <extra-jars/>
@@ -207,14 +205,19 @@
     <!-- Generates the R.java file for this project's resources. -->
     <target name="-resource-src" depends="-dirs">
         <echo>Generating R.java / Manifest.java from the resources...</echo>
-        <aaptexec executable="${aapt}"
-                command="package"
-                verbose="${verbose}"
-                manifest="AndroidManifest.xml"
-                androidjar="${android.jar}"
-                rfolder="${gen.absolute.dir}">
-            <res path="${resource.absolute.dir}" />
-        </aaptexec>
+        <exec executable="${aapt}" failonerror="true">
+            <arg value="package" />
+            <arg line="${v.option}" />
+            <arg value="-m" />
+            <arg value="-J" />
+            <arg path="${gen.absolute.dir}" />
+            <arg value="-M" />
+            <arg path="AndroidManifest.xml" />
+            <arg value="-S" />
+            <arg path="${resource.absolute.dir}" />
+            <arg value="-I" />
+            <arg path="${android.jar}" />
+        </exec>
     </target>
 
     <!-- Generates java classes from .aidl files. -->
@@ -239,15 +242,19 @@
                            value="${tested.project.absolute.dir}/bin/classes" else=".">
             <isset property="tested.project.absolute.dir" />
         </condition>
+        <condition property="extensible.libs.classpath"
+                           value="${tested.project.absolute.dir}/libs" else="./libs">
+            <isset property="tested.project.absolute.dir" />
+        </condition>
         <javac encoding="ascii" target="1.5" debug="true" extdirs=""
                 destdir="${out.classes.absolute.dir}"
                 bootclasspathref="android.target.classpath"
                 verbose="${verbose}" classpath="${extensible.classpath}">
             <src path="${source.absolute.dir}" />
             <src path="${gen.absolute.dir}" />
-            <src refid="android.libraries.src" />
             <classpath>
                 <fileset dir="${external.libs.absolute.dir}" includes="*.jar" />
+                <fileset dir="${extensible.libs.classpath}" includes="*.jar" />
             </classpath>
         </javac>
     </target>
@@ -267,24 +274,21 @@
         <aaptexec executable="${aapt}"
                 command="package"
                 manifest="AndroidManifest.xml"
+                resources="${resource.absolute.dir}"
                 assets="${asset.absolute.dir}"
                 androidjar="${android.jar}"
-                apkfolder="${out.absolute.dir}"
-                apkbasename="${ant.project.name}">
-            <res path="${resource.absolute.dir}" />
-            <!-- <nocompress /> forces no compression on any files in assets or res/raw -->
-            <!-- <nocompress extension="xml" /> forces no compression on specific file extensions in assets and res/raw -->
-        </aaptexec>
+                outfolder="${out.absolute.dir}"
+                basename="${ant.project.name}" />
     </target>
 
     <!-- Packages the application and sign it with a debug key. -->
     <target name="-package-debug-sign" depends="-dex, -package-resources">
-        <package-helper sign.package="true" debug.mode="true" />
+        <package-helper sign.package="true" />
     </target>
 
     <!-- Packages the application without signing it. -->
-    <target name="-package-release" depends="-dex, -package-resources">
-        <package-helper sign.package="false" debug.mode="false" />
+    <target name="-package-no-sign" depends="-dex, -package-resources">
+        <package-helper sign.package="false" />
     </target>
 
     <target name="-compile-tested-if-test" if="tested.project.dir" unless="do.not.compile.again">
@@ -316,7 +320,7 @@
         <echo>and run zipalign from the Android SDK tools.</echo>
     </target>
 
-    <target name="release" depends="-package-release, -release-nosign" if="release.sign"
+    <target name="release" depends="-package-no-sign, -release-nosign" if="release.sign"
                 description="Builds the application. The generated apk file must be signed before
                             it is published.">
         <!-- Gets passwords -->
@@ -409,7 +413,7 @@
 
     <!-- Invoked from external files for code coverage purposes -->
     <target name="-package-with-emma" depends="-dex-instrumented, -package-resources">
-        <package-helper sign.package="true" debug.mode="true">
+        <package-helper sign.package="true">
             <extra-jars>
                 <!-- Injected from external file -->
                 <jarfile path="${emma.dir}/emma_device.jar" />
