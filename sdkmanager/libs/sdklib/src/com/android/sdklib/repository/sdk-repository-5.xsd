@@ -206,6 +206,8 @@
             <xsd:enumeration value="armeabi"     />
             <xsd:enumeration value="armeabi-v7a" />
             <xsd:enumeration value="x86"         />
+            <xsd:enumeration value="mips"        />
+            <xsd:enumeration value="mips-r2"     />
         </xsd:restriction>
     </xsd:simpleType>
 

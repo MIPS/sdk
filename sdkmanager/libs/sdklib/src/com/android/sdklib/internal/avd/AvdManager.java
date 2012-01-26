@@ -608,6 +608,9 @@ public class AvdManager {
                 values.put(AVD_INI_CPU_MODEL, SdkConstants.CPU_MODEL_CORTEX_A8);
             } else if (SdkConstants.ABI_INTEL_ATOM.equals(abiType)) {
                 values.put(AVD_INI_CPU_ARCH, SdkConstants.CPU_ARCH_INTEL_ATOM);
+            } else if (SdkConstants.ABI_MIPS.equals(abiType) ||
+                       SdkConstants.ABI_MIPS_R2.equals(abiType)) {
+                values.put(AVD_INI_CPU_ARCH, SdkConstants.CPU_ARCH_MIPS);
             } else {
                 log.error(null,
                         "ABI %1$s is not supported by this version of the SDK Tools", abiType);
