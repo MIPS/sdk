@@ -60,13 +60,13 @@ typedef Byte*          Bytes;
 static Byte  s_boot_sector   [ BYTES_PER_SECTOR ];   /* boot sector */
 static Byte  s_fsinfo_sector [ BYTES_PER_SECTOR ];   /* FS Info sector */
 static Byte  s_fat_head      [ BYTES_PER_SECTOR ];   /* first FAT sector */
-static Byte  s_zero_sector   [ BYTES_PER_SECTOR ];   /* empty sector */
+// static Byte  s_zero_sector   [ BYTES_PER_SECTOR ];   /* empty sector */
 
 /* this is the date and time when creating the disk */
 static int
 get_serial_id( void )
 {
-    unsigned short  lo, hi, mid;
+    unsigned short  lo, hi;
     time_t          now = time(NULL);
     struct tm       tm  = gmtime( &now )[0];
 
